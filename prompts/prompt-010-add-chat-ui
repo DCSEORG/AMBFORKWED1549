@@ -5,4 +5,3 @@ if you need to create more azure resources for the RAG process then you can but 
 
  add screenshots for the chat UI in Modern-Screenshots folder.
 
-set the app config to "EnableChatUI": true by default to assume we will always have the chatUI
