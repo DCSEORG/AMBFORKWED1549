@@ -1,5 +1,6 @@
 create the Azure resources needed for a generative AI chat user interface including any new azure resource IaC, 
-endpoints, keys etc but make sure to use the managed identity you already created
+endpoints, keys etc but make sure to use the managed identity you already created that you assigned to the appservice such that the app service can use the genai resources
+using managed identity.
 
 use low cost S0 SKUs where possible (for Azure Open AI and Cognitivie services) 
 and always use the "GPT-4o" model in "Sweden" even if the resrouce group is "UKSOUTH" do not use any other models
