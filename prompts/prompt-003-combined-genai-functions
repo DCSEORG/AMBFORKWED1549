@@ -1,2 +1,4 @@
-combine the APIs or app functions with the GenAI functionality in the simplest way so that if the user asks to insert some data the 
-ai model can call the code to do that. only use frameworks like semantic kernal if there is no other simpler way to do it
+combine the APIs or app functions with the GenAI functionality in the simplest way so that if the user asks to
+insert some data the 
+ai model can call the code to do that. 
+only use frameworks like semantic kernal if there is no other simpler way to do it
