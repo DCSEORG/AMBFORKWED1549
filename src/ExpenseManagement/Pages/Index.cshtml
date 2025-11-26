@@ -1,0 +1,93 @@
+@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+@if (Model.HasError)
+{
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            showError('@Html.Raw(Model.Error?.Message?.Replace("'", "\\'"))', '@Model.Error?.FileName', @Model.Error?.LineNumber);
+        });
+    </script>
+}
+
+<h2 style="margin-bottom: 30px; color: #2d3748;">📊 Dashboard Overview</h2>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 40px;">
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px; color: white;">
+        <h3 style="font-size: 2.5rem; margin-bottom: 10px;">@Model.RecentExpenses.Count</h3>
+        <p style="opacity: 0.9;">Recent Expenses</p>
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 30px; border-radius: 12px; color: white;">
+        <h3 style="font-size: 2.5rem; margin-bottom: 10px;">@Model.Users.Count</h3>
+        <p style="opacity: 0.9;">Active Users</p>
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); padding: 30px; border-radius: 12px; color: white;">
+        <h3 style="font-size: 2.5rem; margin-bottom: 10px;">@Model.Categories.Count</h3>
+        <p style="opacity: 0.9;">Expense Categories</p>
+    </div>
+    
+    <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); padding: 30px; border-radius: 12px; color: white;">
+        <h3 style="font-size: 2.5rem; margin-bottom: 10px;">£@(Model.RecentExpenses.Sum(e => e.Amount).ToString("N2"))</h3>
+        <p style="opacity: 0.9;">Total Amount</p>
+    </div>
+</div>
+
+<div style="margin-bottom: 30px;">
+    <h3 style="margin-bottom: 20px; color: #2d3748;">Quick Actions</h3>
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <a href="/Expenses/Create" class="btn btn-primary">➕ New Expense</a>
+        <a href="/Expenses" class="btn btn-success">📋 View All Expenses</a>
+        <a href="/Users" class="btn btn-warning">👥 Manage Users</a>
+        <a href="/Chat" class="btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">💬 Ask AI Assistant</a>
+    </div>
+</div>
+
+<h3 style="margin-bottom: 20px; color: #2d3748;">Recent Expenses</h3>
+
+@if (Model.RecentExpenses.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>User</th>
+                <th>Category</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var expense in Model.RecentExpenses)
+            {
+                <tr>
+                    <td>@expense.ExpenseId</td>
+                    <td>@expense.UserName</td>
+                    <td>@expense.CategoryName</td>
+                    <td>£@expense.Amount.ToString("N2")</td>
+                    <td>@expense.ExpenseDate.ToString("dd MMM yyyy")</td>
+                    <td>
+                        <span class="status-badge status-@expense.StatusName.ToLower()">
+                            @expense.StatusName
+                        </span>
+                    </td>
+                    <td>@(expense.Description ?? "-")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="empty-state">
+        <h3>No expenses found</h3>
+        <p>Start by creating your first expense</p>
+        <a href="/Expenses/Create" class="btn btn-primary" style="margin-top: 20px;">Create Expense</a>
+    </div>
+}
