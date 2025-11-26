@@ -1,0 +1,19 @@
+@page
+@model ErrorModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<h1 style="color: #e53e3e;">⚠️ Error</h1>
+<h2 style="color: #4a5568; margin-top: 20px;">An error occurred while processing your request.</h2>
+
+@if (Model.ShowRequestId)
+{
+    <p style="margin-top: 20px; color: #718096;">
+        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+    </p>
+}
+
+<div style="margin-top: 30px;">
+    <a href="/" class="btn btn-primary">Go to Home</a>
+</div>

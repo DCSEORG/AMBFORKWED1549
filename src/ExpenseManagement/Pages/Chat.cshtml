@@ -1,0 +1,157 @@
+@page
+@model ChatModel
+@{
+    ViewData["Title"] = "Chat Assistant";
+}
+
+<h2 style="margin-bottom: 30px; color: #2d3748;">💬 AI Chat Assistant</h2>
+
+<div style="background: #f7fafc; border-radius: 12px; padding: 20px; margin-bottom: 20px; height: 500px; overflow-y: auto; display: flex; flex-direction: column;" id="chatMessages">
+    <div class="chat-message assistant" style="margin-bottom: 20px; align-self: flex-start; max-width: 80%;">
+        <div style="background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <strong style="color: #667eea;">AI Assistant</strong>
+            <div style="margin-top: 10px; color: #4a5568;">
+                👋 Hello! I'm your AI expense management assistant. I can help you:
+                <ul style="margin-top: 10px; margin-bottom: 0; padding-left: 20px;">
+                    <li>View and search expenses</li>
+                    <li>Create new expenses</li>
+                    <li>Get insights about your spending</li>
+                    <li>Find users and categories</li>
+                </ul>
+                <p style="margin-top: 10px; margin-bottom: 0;">Ask me anything about your expenses!</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="display: flex; gap: 10px;">
+    <input 
+        type="text" 
+        id="chatInput" 
+        placeholder="Type your message here..." 
+        style="flex: 1; padding: 15px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem;"
+        onkeypress="if(event.key === 'Enter') sendMessage()"
+    />
+    <button onclick="sendMessage()" class="btn btn-primary" style="padding: 15px 30px;">
+        Send
+    </button>
+</div>
+
+<div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
+    <strong>💡 Try asking:</strong>
+    <ul style="margin: 10px 0 0 20px;">
+        <li>"Show me all expenses from last week"</li>
+        <li>"List all users in the system"</li>
+        <li>"What are the available expense categories?"</li>
+        <li>"Create an expense for £50 for travel on today's date"</li>
+        <li>"Show me approved expenses"</li>
+    </ul>
+</div>
+
+@section Scripts {
+    <script>
+        let conversationHistory = [];
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function formatMessage(text) {
+            // Escape HTML first
+            let formatted = escapeHtml(text);
+            
+            // Convert markdown-style formatting to HTML
+            // Bold text
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // Numbered lists
+            formatted = formatted.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+            
+            // Bullet lists
+            formatted = formatted.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+            formatted = formatted.replace(/(<li>.*<\/li>)/s, '<ul style="padding-left: 20px; margin: 10px 0;">$1</ul>');
+            
+            // Line breaks
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            return formatted;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message to chat
+            addMessage(message, 'user');
+            input.value = '';
+            
+            // Add to conversation history
+            conversationHistory.push({ role: 'user', content: message });
+            
+            // Show loading message
+            const loadingDiv = addMessage('Thinking...', 'assistant', true);
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: message,
+                        conversationHistory: conversationHistory
+                    })
+                });
+                
+                // Remove loading message
+                loadingDiv.remove();
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addMessage(data.response, 'assistant');
+                    conversationHistory.push({ role: 'assistant', content: data.response });
+                } else {
+                    const error = await response.json();
+                    addMessage('Error: ' + (error.error || 'Failed to get response'), 'assistant');
+                }
+            } catch (error) {
+                loadingDiv.remove();
+                addMessage('Error: ' + error.message, 'assistant');
+            }
+        }
+
+        function addMessage(text, role, isLoading = false) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}`;
+            messageDiv.style.cssText = `margin-bottom: 20px; align-self: ${role === 'user' ? 'flex-end' : 'flex-start'}; max-width: 80%;`;
+            
+            const bubble = document.createElement('div');
+            bubble.style.cssText = `background: ${role === 'user' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white'}; 
+                                    color: ${role === 'user' ? 'white' : '#4a5568'}; 
+                                    padding: 15px; 
+                                    border-radius: 12px; 
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);`;
+            
+            if (role === 'assistant' && !isLoading) {
+                bubble.innerHTML = `<strong style="color: #667eea;">AI Assistant</strong><div style="margin-top: 10px;">${formatMessage(text)}</div>`;
+            } else {
+                bubble.innerHTML = `<strong style="${role === 'user' ? 'opacity: 0.9;' : 'color: #667eea;'}">${role === 'user' ? 'You' : 'AI Assistant'}</strong><div style="margin-top: 10px;">${escapeHtml(text)}</div>`;
+            }
+            
+            messageDiv.appendChild(bubble);
+            messagesDiv.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            return messageDiv;
+        }
+    </script>
+}

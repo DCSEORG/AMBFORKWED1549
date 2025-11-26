@@ -1,0 +1,286 @@
+@page
+@model ExpensesModel
+@{
+    ViewData["Title"] = "Expenses";
+}
+
+@if (Model.HasError)
+{
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            showError('@Html.Raw(Model.Error?.Message?.Replace("'", "\\'"))', '@Model.Error?.FileName', @Model.Error?.LineNumber);
+        });
+    </script>
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <h2 style="color: #2d3748;">📋 Expense Management</h2>
+    <button onclick="showCreateForm()" class="btn btn-primary">➕ New Expense</button>
+</div>
+
+<div style="margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap;">
+    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+        <select id="userFilter" onchange="filterExpenses()" style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;">
+            <option value="">All Users</option>
+            @foreach (var user in Model.Users)
+            {
+                <option value="@user.UserId">@user.UserName</option>
+            }
+        </select>
+    </div>
+    
+    <div class="form-group" style="margin-bottom: 0; flex: 1; min-width: 200px;">
+        <select id="statusFilter" onchange="filterExpenses()" style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%;">
+            <option value="">All Statuses</option>
+            @foreach (var status in Model.Statuses)
+            {
+                <option value="@status.StatusId">@status.StatusName</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div id="expensesContainer">
+    @if (Model.Expenses.Any())
+    {
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>User</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="expenseTableBody">
+                @foreach (var expense in Model.Expenses)
+                {
+                    <tr data-user-id="@expense.UserId" data-status-id="@expense.StatusId">
+                        <td>@expense.ExpenseId</td>
+                        <td>@expense.UserName</td>
+                        <td>@expense.CategoryName</td>
+                        <td>£@expense.Amount.ToString("N2")</td>
+                        <td>@expense.ExpenseDate.ToString("dd MMM yyyy")</td>
+                        <td>
+                            <span class="status-badge status-@expense.StatusName.ToLower()">
+                                @expense.StatusName
+                            </span>
+                        </td>
+                        <td>@(expense.Description ?? "-")</td>
+                        <td>
+                            <div style="display: flex; gap: 5px;">
+                                @if (expense.StatusName == "Draft")
+                                {
+                                    <button onclick="submitExpense(@expense.ExpenseId)" class="btn btn-success" style="padding: 6px 12px; font-size: 0.875rem;">Submit</button>
+                                }
+                                @if (expense.StatusName == "Submitted")
+                                {
+                                    <button onclick="approveExpense(@expense.ExpenseId)" class="btn btn-success" style="padding: 6px 12px; font-size: 0.875rem;">Approve</button>
+                                    <button onclick="rejectExpense(@expense.ExpenseId)" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.875rem;">Reject</button>
+                                }
+                                <button onclick="deleteExpense(@expense.ExpenseId)" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.875rem;">Delete</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="empty-state">
+            <h3>No expenses found</h3>
+            <p>Start by creating your first expense</p>
+            <button onclick="showCreateForm()" class="btn btn-primary" style="margin-top: 20px;">Create Expense</button>
+        </div>
+    }
+</div>
+
+<!-- Create Expense Modal -->
+<div id="createModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; padding: 20px; overflow-y: auto;">
+    <div style="max-width: 600px; margin: 50px auto; background: white; border-radius: 12px; padding: 30px;">
+        <h3 style="margin-bottom: 20px; color: #2d3748;">Create New Expense</h3>
+        
+        <form id="createForm" onsubmit="createExpense(event)">
+            <div class="form-group">
+                <label>User</label>
+                <select id="createUserId" required>
+                    @foreach (var user in Model.Users)
+                    {
+                        <option value="@user.UserId">@user.UserName</option>
+                    }
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Category</label>
+                <select id="createCategoryId" required>
+                    <option value="1">Travel</option>
+                    <option value="2">Meals</option>
+                    <option value="3">Supplies</option>
+                    <option value="4">Accommodation</option>
+                    <option value="5">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Amount (£)</label>
+                <input type="number" id="createAmount" step="0.01" min="0" required />
+            </div>
+            
+            <div class="form-group">
+                <label>Date</label>
+                <input type="date" id="createDate" required />
+            </div>
+            
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="createDescription" rows="3"></textarea>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create Expense</button>
+                <button type="button" onclick="hideCreateForm()" class="btn" style="background: #e2e8f0; color: #4a5568;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showCreateForm() {
+            document.getElementById('createModal').style.display = 'block';
+            document.getElementById('createDate').valueAsDate = new Date();
+        }
+        
+        function hideCreateForm() {
+            document.getElementById('createModal').style.display = 'none';
+            document.getElementById('createForm').reset();
+        }
+        
+        async function createExpense(event) {
+            event.preventDefault();
+            
+            const data = {
+                userId: parseInt(document.getElementById('createUserId').value),
+                categoryId: parseInt(document.getElementById('createCategoryId').value),
+                amount: parseFloat(document.getElementById('createAmount').value),
+                currency: 'GBP',
+                expenseDate: document.getElementById('createDate').value,
+                description: document.getElementById('createDescription').value
+            };
+            
+            try {
+                const response = await fetch('/api/expenses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert('Expense created successfully!');
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to create expense'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function submitExpense(id) {
+            if (!confirm('Submit this expense for approval?')) return;
+            
+            try {
+                const response = await fetch(`/api/expenses/${id}/submit`, { method: 'POST' });
+                if (response.ok) {
+                    alert('Expense submitted successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Error submitting expense');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function approveExpense(id) {
+            if (!confirm('Approve this expense?')) return;
+            
+            try {
+                const response = await fetch(`/api/expenses/${id}/approve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(1)  // Default reviewer ID
+                });
+                
+                if (response.ok) {
+                    alert('Expense approved successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Error approving expense');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function rejectExpense(id) {
+            if (!confirm('Reject this expense?')) return;
+            
+            try {
+                const response = await fetch(`/api/expenses/${id}/reject`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(1)  // Default reviewer ID
+                });
+                
+                if (response.ok) {
+                    alert('Expense rejected successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Error rejecting expense');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        async function deleteExpense(id) {
+            if (!confirm('Are you sure you want to delete this expense?')) return;
+            
+            try {
+                const response = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Expense deleted successfully!');
+                    window.location.reload();
+                } else {
+                    alert('Error deleting expense');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+        
+        function filterExpenses() {
+            const userFilter = document.getElementById('userFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const rows = document.querySelectorAll('#expenseTableBody tr');
+            
+            rows.forEach(row => {
+                const userId = row.getAttribute('data-user-id');
+                const statusId = row.getAttribute('data-status-id');
+                
+                const userMatch = !userFilter || userId === userFilter;
+                const statusMatch = !statusFilter || statusId === statusFilter;
+                
+                row.style.display = (userMatch && statusMatch) ? '' : 'none';
+            });
+        }
+    </script>
+}

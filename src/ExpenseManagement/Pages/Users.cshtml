@@ -1,0 +1,150 @@
+@page
+@model UsersModel
+@{
+    ViewData["Title"] = "Users";
+}
+
+@if (Model.HasError)
+{
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            showError('@Html.Raw(Model.Error?.Message?.Replace("'", "\\'"))', '@Model.Error?.FileName', @Model.Error?.LineNumber);
+        });
+    </script>
+}
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <h2 style="color: #2d3748;">👥 User Management</h2>
+    <button onclick="showCreateForm()" class="btn btn-primary">➕ New User</button>
+</div>
+
+@if (Model.Users.Any())
+{
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Manager</th>
+                <th>Status</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model.Users)
+            {
+                <tr>
+                    <td>@user.UserId</td>
+                    <td>@user.UserName</td>
+                    <td>@user.Email</td>
+                    <td>@user.RoleName</td>
+                    <td>@(user.ManagerName ?? "-")</td>
+                    <td>
+                        <span class="status-badge" style="background: @(user.IsActive ? "#c6f6d5" : "#fed7d7"); color: @(user.IsActive ? "#22543d" : "#742a2a")">
+                            @(user.IsActive ? "Active" : "Inactive")
+                        </span>
+                    </td>
+                    <td>@user.CreatedAt.ToString("dd MMM yyyy")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="empty-state">
+        <h3>No users found</h3>
+        <p>Start by creating your first user</p>
+        <button onclick="showCreateForm()" class="btn btn-primary" style="margin-top: 20px;">Create User</button>
+    </div>
+}
+
+<!-- Create User Modal -->
+<div id="createModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; padding: 20px; overflow-y: auto;">
+    <div style="max-width: 600px; margin: 50px auto; background: white; border-radius: 12px; padding: 30px;">
+        <h3 style="margin-bottom: 20px; color: #2d3748;">Create New User</h3>
+        
+        <form id="createForm" onsubmit="createUser(event)">
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" id="createUserName" required />
+            </div>
+            
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="createEmail" required />
+            </div>
+            
+            <div class="form-group">
+                <label>Role</label>
+                <select id="createRoleId" required>
+                    @foreach (var role in Model.Roles)
+                    {
+                        <option value="@role.RoleId">@role.RoleName</option>
+                    }
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Manager (Optional)</label>
+                <select id="createManagerId">
+                    <option value="">None</option>
+                    @foreach (var user in Model.Users.Where(u => u.RoleName == "Manager"))
+                    {
+                        <option value="@user.UserId">@user.UserName</option>
+                    }
+                </select>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Create User</button>
+                <button type="button" onclick="hideCreateForm()" class="btn" style="background: #e2e8f0; color: #4a5568;">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function showCreateForm() {
+            document.getElementById('createModal').style.display = 'block';
+        }
+        
+        function hideCreateForm() {
+            document.getElementById('createModal').style.display = 'none';
+            document.getElementById('createForm').reset();
+        }
+        
+        async function createUser(event) {
+            event.preventDefault();
+            
+            const managerId = document.getElementById('createManagerId').value;
+            const data = {
+                userName: document.getElementById('createUserName').value,
+                email: document.getElementById('createEmail').value,
+                roleId: parseInt(document.getElementById('createRoleId').value),
+                managerId: managerId ? parseInt(managerId) : null
+            };
+            
+            try {
+                const response = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.ok) {
+                    alert('User created successfully!');
+                    window.location.reload();
+                } else {
+                    const error = await response.json();
+                    alert('Error: ' + (error.error || 'Failed to create user'));
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+    </script>
+}
