@@ -7,7 +7,7 @@ echo "=========================================="
 echo ""
 
 # Configuration
-RESOURCE_GROUP="rg-expensemgmt-demo"
+RESOURCE_GROUP="rg-expensemgmt-demo-1707"
 LOCATION="uksouth"
 
 # Get current user information for SQL admin
