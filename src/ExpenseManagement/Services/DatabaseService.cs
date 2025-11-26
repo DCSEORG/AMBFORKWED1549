@@ -90,7 +90,7 @@ public class DatabaseService : IDatabaseService
             
             command.Parameters.AddWithValue("@UserId", request.UserId);
             command.Parameters.AddWithValue("@CategoryId", request.CategoryId);
-            command.Parameters.AddWithValue("@AmountMinor", (int)(request.Amount * 100));
+            command.Parameters.AddWithValue("@AmountMinor", (int)Math.Round(request.Amount * 100, MidpointRounding.AwayFromZero));
             command.Parameters.AddWithValue("@Currency", request.Currency);
             command.Parameters.AddWithValue("@ExpenseDate", request.ExpenseDate);
             command.Parameters.Add(new SqlParameter("@Description", SqlDbType.NVarChar, 1000) { Value = (object?)request.Description ?? DBNull.Value });
@@ -117,7 +117,7 @@ public class DatabaseService : IDatabaseService
             
             command.Parameters.AddWithValue("@ExpenseId", expenseId);
             command.Parameters.AddWithValue("@CategoryId", request.CategoryId);
-            command.Parameters.AddWithValue("@AmountMinor", (int)(request.Amount * 100));
+            command.Parameters.AddWithValue("@AmountMinor", (int)Math.Round(request.Amount * 100, MidpointRounding.AwayFromZero));
             command.Parameters.AddWithValue("@ExpenseDate", request.ExpenseDate);
             command.Parameters.Add(new SqlParameter("@Description", SqlDbType.NVarChar, 1000) { Value = (object?)request.Description ?? DBNull.Value });
             command.Parameters.Add(new SqlParameter("@ReceiptFile", SqlDbType.NVarChar, 500) { Value = (object?)request.ReceiptFile ?? DBNull.Value });

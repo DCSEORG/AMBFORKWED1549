@@ -140,8 +140,12 @@ echo ""
 
 # Step 9: Update script.sql with managed identity name and configure database roles
 echo "Step 9: Configuring database roles for managed identity..."
-# Get the managed identity name
-MANAGED_IDENTITY_NAME=$(echo $DEPLOYMENT_OUTPUT | jq -r '.appServiceName.value' | sed 's/app-/mid-/')
+# Get the managed identity name from deployment outputs
+MANAGED_IDENTITY_NAME=$(az identity list --resource-group $RESOURCE_GROUP --query "[?contains(name, 'expensemgmt')].name" -o tsv | head -1)
+if [ -z "$MANAGED_IDENTITY_NAME" ]; then
+    echo "⚠️ Warning: Could not find managed identity name, using fallback method"
+    MANAGED_IDENTITY_NAME=$(echo $APP_SERVICE_NAME | sed 's/app-/mid-/')
+fi
 sed -i.bak "s/MANAGED-IDENTITY-NAME/$MANAGED_IDENTITY_NAME/g" script.sql && rm -f script.sql.bak
 python3 run-sql-dbrole.py
 echo "✓ Database roles configured"

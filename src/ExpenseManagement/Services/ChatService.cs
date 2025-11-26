@@ -288,8 +288,18 @@ Always be helpful, professional, and accurate with financial data.";
         
         int? userId = args != null && args.ContainsKey("userId") ? args["userId"].GetInt32() : null;
         int? statusId = args != null && args.ContainsKey("statusId") ? args["statusId"].GetInt32() : null;
-        DateTime? fromDate = args != null && args.ContainsKey("fromDate") ? DateTime.Parse(args["fromDate"].GetString()!) : null;
-        DateTime? toDate = args != null && args.ContainsKey("toDate") ? DateTime.Parse(args["toDate"].GetString()!) : null;
+        DateTime? fromDate = null;
+        DateTime? toDate = null;
+        
+        if (args != null && args.ContainsKey("fromDate") && DateTime.TryParse(args["fromDate"].GetString(), out var parsedFromDate))
+        {
+            fromDate = parsedFromDate;
+        }
+        
+        if (args != null && args.ContainsKey("toDate") && DateTime.TryParse(args["toDate"].GetString(), out var parsedToDate))
+        {
+            toDate = parsedToDate;
+        }
 
         var expenses = await _databaseService.GetExpensesAsync(userId, statusId, fromDate, toDate);
         
@@ -323,7 +333,7 @@ Always be helpful, professional, and accurate with financial data.";
             UserId = args["userId"].GetInt32(),
             CategoryId = args["categoryId"].GetInt32(),
             Amount = (decimal)args["amount"].GetDouble(),
-            ExpenseDate = DateTime.Parse(args["expenseDate"].GetString()!),
+            ExpenseDate = DateTime.TryParse(args["expenseDate"].GetString(), out var parsedDate) ? parsedDate : DateTime.Today,
             Description = args.ContainsKey("description") ? args["description"].GetString() : null,
             Currency = "GBP"
         };
