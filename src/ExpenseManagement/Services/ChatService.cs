@@ -1,9 +1,9 @@
 using Azure;
 using Azure.AI.OpenAI;
 using Azure.Identity;
+using Azure.Core;
 using ExpenseManagement.Models;
 using System.Text.Json;
-using System.ClientModel;
 
 namespace ExpenseManagement.Services;
 
@@ -105,10 +105,78 @@ public class ChatService : IChatService
             }
 
             // Add function definitions
-            chatOptions.Tools.Add(GetExpensesFunction());
-            chatOptions.Tools.Add(CreateExpenseFunction());
-            chatOptions.Tools.Add(GetUsersFunction());
-            chatOptions.Tools.Add(GetCategoriesFunction());
+            chatOptions.Tools.Add(new ChatCompletionsFunctionToolDefinition
+            {
+                Name = "get_expenses",
+                Description = "Retrieves expense records from the database with optional filtering by user ID, status ID, or date range",
+                Parameters = BinaryData.FromString(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""userId"": {
+                            ""type"": ""integer"",
+                            ""description"": ""Optional user ID to filter expenses""
+                        },
+                        ""statusId"": {
+                            ""type"": ""integer"",
+                            ""description"": ""Optional status ID (1=Draft, 2=Submitted, 3=Approved, 4=Rejected)""
+                        },
+                        ""fromDate"": {
+                            ""type"": ""string"",
+                            ""description"": ""Optional start date in ISO format (yyyy-MM-dd)""
+                        },
+                        ""toDate"": {
+                            ""type"": ""string"",
+                            ""description"": ""Optional end date in ISO format (yyyy-MM-dd)""
+                        }
+                    }
+                }")
+            });
+
+            chatOptions.Tools.Add(new ChatCompletionsFunctionToolDefinition
+            {
+                Name = "create_expense",
+                Description = "Creates a new expense record in the database",
+                Parameters = BinaryData.FromString(@"{
+                    ""type"": ""object"",
+                    ""properties"": {
+                        ""userId"": {
+                            ""type"": ""integer"",
+                            ""description"": ""User ID who owns this expense""
+                        },
+                        ""categoryId"": {
+                            ""type"": ""integer"",
+                            ""description"": ""Category ID (1=Travel, 2=Meals, 3=Supplies, 4=Accommodation, 5=Other)""
+                        },
+                        ""amount"": {
+                            ""type"": ""number"",
+                            ""description"": ""Expense amount in GBP""
+                        },
+                        ""expenseDate"": {
+                            ""type"": ""string"",
+                            ""description"": ""Date of expense in ISO format (yyyy-MM-dd)""
+                        },
+                        ""description"": {
+                            ""type"": ""string"",
+                            ""description"": ""Optional description of the expense""
+                        }
+                    },
+                    ""required"": [""userId"", ""categoryId"", ""amount"", ""expenseDate""]
+                }")
+            });
+
+            chatOptions.Tools.Add(new ChatCompletionsFunctionToolDefinition
+            {
+                Name = "get_users",
+                Description = "Retrieves the list of all active users in the system",
+                Parameters = BinaryData.FromString(@"{""type"": ""object"", ""properties"": {}}")
+            });
+
+            chatOptions.Tools.Add(new ChatCompletionsFunctionToolDefinition
+            {
+                Name = "get_categories",
+                Description = "Retrieves the list of available expense categories",
+                Parameters = BinaryData.FromString(@"{""type"": ""object"", ""properties"": {}}")
+            });
 
             // Get response
             var response = await _openAIClient.GetChatCompletionsAsync(chatOptions);
@@ -117,8 +185,13 @@ public class ChatService : IChatService
             // Check if the model wants to call functions
             if (responseMessage.ToolCalls != null && responseMessage.ToolCalls.Count > 0)
             {
-                // Process function calls
-                messages.Add(new ChatRequestAssistantMessage(responseMessage));
+                // Create a proper assistant message for the conversation history
+                var assistantMessage = new ChatRequestAssistantMessage(responseMessage.Content);
+                foreach (var toolCall in responseMessage.ToolCalls)
+                {
+                    assistantMessage.ToolCalls.Add(toolCall);
+                }
+                messages.Add(assistantMessage);
 
                 foreach (var toolCall in responseMessage.ToolCalls)
                 {
@@ -176,97 +249,6 @@ When displaying lists:
 - Keep responses concise but informative
 
 Always be helpful, professional, and accurate with financial data.";
-    }
-
-    private ChatCompletionsFunctionToolDefinition GetExpensesFunction()
-    {
-        return new ChatCompletionsFunctionToolDefinition
-        {
-            Name = "get_expenses",
-            Description = "Retrieves expense records from the database with optional filtering by user ID, status ID, or date range",
-            Parameters = BinaryData.FromString(@"{
-                ""type"": ""object"",
-                ""properties"": {
-                    ""userId"": {
-                        ""type"": ""integer"",
-                        ""description"": ""Optional user ID to filter expenses""
-                    },
-                    ""statusId"": {
-                        ""type"": ""integer"",
-                        ""description"": ""Optional status ID (1=Draft, 2=Submitted, 3=Approved, 4=Rejected)""
-                    },
-                    ""fromDate"": {
-                        ""type"": ""string"",
-                        ""description"": ""Optional start date in ISO format (yyyy-MM-dd)""
-                    },
-                    ""toDate"": {
-                        ""type"": ""string"",
-                        ""description"": ""Optional end date in ISO format (yyyy-MM-dd)""
-                    }
-                }
-            }")
-        };
-    }
-
-    private ChatCompletionsFunctionToolDefinition CreateExpenseFunction()
-    {
-        return new ChatCompletionsFunctionToolDefinition
-        {
-            Name = "create_expense",
-            Description = "Creates a new expense record in the database",
-            Parameters = BinaryData.FromString(@"{
-                ""type"": ""object"",
-                ""properties"": {
-                    ""userId"": {
-                        ""type"": ""integer"",
-                        ""description"": ""User ID who owns this expense""
-                    },
-                    ""categoryId"": {
-                        ""type"": ""integer"",
-                        ""description"": ""Category ID (1=Travel, 2=Meals, 3=Supplies, 4=Accommodation, 5=Other)""
-                    },
-                    ""amount"": {
-                        ""type"": ""number"",
-                        ""description"": ""Expense amount in GBP""
-                    },
-                    ""expenseDate"": {
-                        ""type"": ""string"",
-                        ""description"": ""Date of expense in ISO format (yyyy-MM-dd)""
-                    },
-                    ""description"": {
-                        ""type"": ""string"",
-                        ""description"": ""Optional description of the expense""
-                    }
-                },
-                ""required"": [""userId"", ""categoryId"", ""amount"", ""expenseDate""]
-            }")
-        };
-    }
-
-    private ChatCompletionsFunctionToolDefinition GetUsersFunction()
-    {
-        return new ChatCompletionsFunctionToolDefinition
-        {
-            Name = "get_users",
-            Description = "Retrieves the list of all active users in the system",
-            Parameters = BinaryData.FromString(@"{
-                ""type"": ""object"",
-                ""properties"": {}
-            }")
-        };
-    }
-
-    private ChatCompletionsFunctionToolDefinition GetCategoriesFunction()
-    {
-        return new ChatCompletionsFunctionToolDefinition
-        {
-            Name = "get_categories",
-            Description = "Retrieves the list of available expense categories",
-            Parameters = BinaryData.FromString(@"{
-                ""type"": ""object"",
-                ""properties"": {}
-            }")
-        };
     }
 
     private async Task<string> ExecuteFunctionAsync(string functionName, string argumentsJson)
